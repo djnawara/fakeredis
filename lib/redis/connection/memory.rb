@@ -635,8 +635,29 @@ class Redis
         set(key, value)
       end
 
-      def set(key, value)
+      def set(key, value, *options)
+        option_nx = options.delete("NX")
+        option_xx = options.delete("XX")
+
+        return false if option_nx && option_xx
+
+        return false if option_nx && exists(key)
+        return false if option_xx && !exists(key)
         data[key] = value.to_s
+
+        options.each_with_index do |option, index|
+          if option == "PX"
+            ttl_in_milli = options[index + 1]
+            ttl_in_seconds = ttl_in_milli / 1000
+          end
+
+          if option == "EX"
+            ttl_in_seconds = options[index + 1]
+          end
+
+          expire(key, ttl_in_seconds.to_i) if ttl_in_seconds
+        end
+
         "OK"
       end
 
